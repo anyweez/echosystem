@@ -10,9 +10,6 @@ feedq = juggle.Queue('feeds')
 #labelq = juggle.Queue('labeling')
 docstore = juggle.Docstore('docs')
 
-msg = feedq.pop()
-print msg
-
 # Fetch all articles for this feed.
 while True:
   url = feedq.pop().loc.url
