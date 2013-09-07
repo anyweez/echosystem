@@ -1,0 +1,3 @@
+[submodule "juggle"]
+	path = juggle
+	url = git@github.com:luke-segars/juggle.git
