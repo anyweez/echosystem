@@ -1,4 +1,6 @@
-import juggle
+import juggle, sys
+# TODO: consider moving this behind the queue interface?
+import proto.Task_pb2 as proto
 
 ##################################################################
 ## Add all feeds from the file specified by the first parameter ##
@@ -9,10 +11,12 @@ import juggle
 
 feedsq = juggle.Queue('feeds')
 
-with open(sys.arg[1]) as fp:
+with open(sys.argv[1]) as fp:
   feeds = [line.strip() for line in fp.readlines()]
 
   for feed in feeds:
     task = proto.Task()
-    task.loc.url = feed
+    task.content.location = feed
+    task.content.type = proto.Location.WEB_URL
+
     feedsq.push(task)
