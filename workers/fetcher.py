@@ -1,4 +1,5 @@
-import juggle, feedparser, time, datetime
+import juggle, feedparser, time, datetime, urllib2
+import proto.Task_pb2 as proto
 
 ############################################
 ## fetcher is responsible for retrieving all of the stories in a particular
@@ -13,14 +14,13 @@ def clean_description(desc):
     return desc
 
 feedq = juggle.Queue('feeds')
-#labelq = juggle.Queue('labeling')
+labelq = juggle.Queue('labeling')
 docstore = juggle.Docstore('news.docs')
 
 print 'Awaiting feeds...'
 # Fetch all articles for this feed.
 while True:
   tasks = feedq.pop()
-  print tasks
 
   if tasks is not None:
     # Juggle will only return one feed at this point, but the protocol supports sending
@@ -31,31 +31,36 @@ while True:
       print 'Feed received:', url
       doc = feedparser.parse(url)
 
-      print len(doc.entries)
-
+      print 'Fetching %d documents...' % len(doc.entries)
       for story in doc.entries:
         print '%s <%s>' % (story.title, story.link)
-	with urllib2.urlopen(story.link) as fp:
+	try:
+	  fp = urllib2.urlopen(story.link)
   	  body = fp.read()
-        
+          fp.close()
+        except urllib2.HTTPError:
+          print '<Warning> Document not found.'
+	  continue
+
 	# TODO: Add some extra fields.
         doc = {
           'title': story.title,
 	  'description': clean_description(story.description),
 	  'published': story.published,
 	  'source_url': url,
-	  'retrieved': datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT'),
+          'retrieved': datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT'),
 	  # docid is added once the document is stored
+	  # _id (mongodb id) is added by the docstore.save() method
         }
 
-	doc['docid'] = docstore.store(doc, body)
+	doc['docid'] = docstore.save(doc, body)
 
         # Submit the article to the labeling queue. Then the fetcher's job is
 	# complete!
-#        article = proto.Task()
-#        article.content.location = doc['docid']
-#        article.content.type = proto.Task.Location.DOCUMENT
-#        labelq.push(article)
+        article = proto.Task()
+        article.content.location = doc['docid']
+        article.content.type = proto.Location.DOCUMENT
+        labelq.push(article)
   # TODO: Move this into jugglelib.
   else:
     time.sleep(5)
